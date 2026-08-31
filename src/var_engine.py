@@ -30,19 +30,6 @@ class VaRResult:
     avg_corr_paths: Optional[np.ndarray] = None     # (n_paths, T+1)
 
 
-def _mvn_sample(
-    C: np.ndarray, sigma: np.ndarray, epsilon: np.ndarray
-) -> np.ndarray:
-    """Return one Gaussian return vector for covariance ``diag(sigma) C diag(sigma)``.
-
-    ``epsilon`` is a pre-drawn ``(n,)`` standard-normal vector — using pre-drawn
-    innovations makes common-random-number comparisons trivial (needed for
-    exp_5 finite differences).
-    """
-    L = correlation_to_cholesky(C)
-    return sigma * (L @ epsilon)
-
-
 def simulate_static_var(
     C_start: np.ndarray,
     sigma: np.ndarray,
@@ -60,8 +47,8 @@ def simulate_static_var(
     eps = rng.standard_normal((T, n_paths, n))
     # daily returns for each path/day: sigma * (L @ eps_t^T)
     daily = np.einsum("i,ij,tpj->tpi", sigma, L_static, eps)
-    # 30-day arithmetic-return aggregate (small approx to compounded log-return,
-    # but consistent with the paper's zero-mean Gaussian daily model)
+    # T-day arithmetic-return aggregate (small-return approximation to
+    # compounded log returns, consistent with the zero-mean Gaussian model).
     port_daily = daily @ weights                    # (T, n_paths)
     port_total = port_daily.sum(axis=0)             # (n_paths,)
     losses = -port_total
@@ -76,7 +63,7 @@ def simulate_dynamic_var(
     rho_crisis: float = 0.9,
     T: int = 30,
     dt: float = 1.0,
-    sigma_bridge: float = 0.11,
+    sigma_bridge: Optional[float] = None,
     n_paths: int = 50_000,
     alpha: float = 0.95,
     seed: int = 0,
@@ -87,7 +74,17 @@ def simulate_dynamic_var(
     For each MC path, simulate a fresh Brownian-bridge correlation trajectory
     ``L_0 -> ... -> L_T`` toward the crisis equicorrelation matrix (rho=0.9),
     then draw one Gaussian return per day using ``Sigma_t = diag(sigma) C_t diag(sigma)``.
+
+    ``sigma_bridge`` is intentionally required at runtime. The empirical
+    experiments estimate it from the pre-as-of QV slope after dividing by
+    ``dim(Chol_n)``; silently defaulting to the paper's aggregate slope 0.11
+    would reintroduce the normalization bug fixed by this replication.
     """
+    if sigma_bridge is None:
+        raise ValueError(
+            "sigma_bridge must be supplied; estimate it from the QV slope "
+            "with src.manifold.estimate_bridge_sigma()."
+        )
     n = C_start.shape[0]
     C_crisis = equicorrelation_matrix(n, rho_crisis)
     L0 = correlation_to_cholesky(C_start)
@@ -108,8 +105,12 @@ def simulate_dynamic_var(
             all_paths[p, 0] = C0
             avg_corr[p, 0] = C0[off_mask].mean()
         for k in range(T):
-            t = k * dt
-            L = bridge_step(L, K, t, T * dt, dt, sigma_bridge, rng)
+            if k == T - 1:
+                # The discrete bridge must satisfy the conditioning endpoint.
+                L = K.copy()
+            else:
+                t = k * dt
+                L = bridge_step(L, K, t, T * dt, dt, sigma_bridge, rng)
             C_t = cholesky_to_correlation(L)
             eps = rng.standard_normal(n)
             r = sigma * (correlation_to_cholesky(C_t) @ eps)

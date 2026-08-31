@@ -6,14 +6,18 @@ import pytest
 
 from src.manifold import (
     bridge_step,
+    cholesky_dimension,
     cholesky_to_correlation,
     correlation_to_cholesky,
     diffusion_step,
     equicorrelation_matrix,
+    estimate_bridge_sigma,
     exp_map_sphere,
     geodesic_distance,
     log_map_sphere,
+    qv_ols_slope,
     random_correlation_via_hemispheres,
+    sigma_from_qv_slope,
     simulate_bridge_path,
     validate_correlation_matrix,
 )
@@ -63,7 +67,7 @@ def test_diffusion_preserves_correlation_structure():
 
 
 def test_bridge_hits_crisis_direction():
-    """Average correlation should rise significantly along the bridge."""
+    """A discrete Brownian bridge must end exactly at its conditioning target."""
     rng = np.random.default_rng(4)
     n = 10
     C0 = equicorrelation_matrix(n, 0.2)
@@ -75,6 +79,7 @@ def test_bridge_hits_crisis_direction():
     avg0 = cholesky_to_correlation(L_path[0])[mask].mean()
     avgT = cholesky_to_correlation(L_path[-1])[mask].mean()
     assert avgT > avg0 + 0.2  # meaningful progression toward 0.9
+    assert np.allclose(L_path[-1], K, atol=1e-12)
 
 
 def test_geodesic_distance_zero_for_same_matrix():
@@ -146,3 +151,43 @@ def test_geodesic_distance_bounded_by_pi_sqrt_n():
         B = random_correlation_via_hemispheres(n, rng)
         d = geodesic_distance(A, B)
         assert 0 <= d <= np.pi * np.sqrt(n - 1) + 1e-8
+
+
+def test_cholesky_dimension_matches_tangent_sum():
+    assert cholesky_dimension(2) == 1
+    assert cholesky_dimension(10) == 45
+    assert cholesky_dimension(9) == 36
+    with pytest.raises(ValueError):
+        cholesky_dimension(1)
+
+
+def test_sigma_from_qv_slope_inverts_isotropic_identity():
+    """α = σ² · dim(Chol_n)  ⇒  σ = sqrt(α / dim)."""
+    n = 10
+    sigma = 0.05
+    slope = sigma ** 2 * cholesky_dimension(n)  # 0.1125
+    assert sigma_from_qv_slope(slope, n) == pytest.approx(sigma)
+    # n=10, paper-like QV slope 0.11 → σ ≈ 0.0494, not 0.11
+    assert sigma_from_qv_slope(0.11, 10) == pytest.approx(np.sqrt(0.11 / 45))
+    # smaller panel, same slope ⇒ larger per-coordinate σ
+    assert sigma_from_qv_slope(0.11, 9) > sigma_from_qv_slope(0.11, 10)
+
+
+def test_qv_ols_slope_recovers_linear_drift():
+    increments = np.full(20, 0.08)
+    slope, intercept, r2 = qv_ols_slope(increments)
+    assert slope == pytest.approx(0.08, rel=1e-10)
+    assert r2 == pytest.approx(1.0)
+
+
+def test_estimate_bridge_sigma_positive_on_synthetic_returns():
+    rng = np.random.default_rng(0)
+    n, T = 4, 400
+    z = rng.standard_normal((T, n))
+    returns = 0.01 * (0.4 * z.mean(axis=1, keepdims=True) + 0.6 * z)
+    sigma, info = estimate_bridge_sigma(returns, burn_in=40)
+    assert sigma > 0.0
+    assert info["cholesky_dim"] == 6
+    assert info["qv_slope"] > 0.0
+    assert 0.0 < info["qv_r2"] <= 1.0
+

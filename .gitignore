@@ -3,6 +3,8 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .ipynb_checkpoints/
+data/
+*.parquet
 .env
 .venv/
 venv/

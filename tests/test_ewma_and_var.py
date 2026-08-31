@@ -41,6 +41,39 @@ def test_ewma_covariance_path_length():
         assert np.allclose(S, S.T)
 
 
+def test_ewma_covariance_includes_last_return():
+    """The terminal snapshot must update with R[-1], not stop at R[-2]."""
+    lam = 0.8
+    burn_in = 3
+    R = np.array(
+        [
+            [0.01, -0.01],
+            [0.02, 0.00],
+            [-0.01, 0.01],
+            [0.00, 0.02],
+            [0.25, -0.30],  # deliberately dominant final observation
+        ]
+    )
+    expected = np.cov(R[:burn_in].T, ddof=0)
+    for t in range(burn_in, len(R)):
+        r = R[t].reshape(-1, 1)
+        expected = lam * expected + (1.0 - lam) * (r @ r.T)
+
+    actual = ewma_covariance(R, lam=lam, burn_in=burn_in)
+
+    assert np.allclose(actual, expected)
+
+
+def test_ewma_path_terminal_matches_snapshot():
+    R = _synthetic_returns(T=100)
+
+    path = ewma_covariance_path(R, lam=0.94, burn_in=20)
+    snapshot = ewma_covariance(R, lam=0.94, burn_in=20)
+
+    assert len(path) == 80
+    assert np.allclose(path[-1], snapshot)
+
+
 def test_cov_to_corr_diagonal_unity():
     R = _synthetic_returns()
     S = ewma_covariance(R)
@@ -57,6 +90,16 @@ def test_static_var_positive_and_es_ge_var():
     out = simulate_static_var(C, sigma, w, T=30, n_paths=2000, seed=0)
     assert out.var > 0
     assert out.es >= out.var - 1e-12
+
+
+def test_dynamic_var_requires_calibrated_bridge_sigma():
+    n = 3
+    C = equicorrelation_matrix(n, 0.3)
+    sigma = np.full(n, 0.02)
+    w = np.full(n, 1.0 / n)
+
+    with pytest.raises(ValueError, match="sigma_bridge must be supplied"):
+        simulate_dynamic_var(C, sigma, w, n_paths=1)
 
 
 def test_dynamic_var_matches_static_when_bridge_target_equals_start():
