@@ -1,0 +1,10 @@
+{
+  "n_obs": 7,
+  "slope_bps_per_unit_distance": 139.04714337133726,
+  "intercept_bps": -185.63619692278132,
+  "r_squared": 0.920176038926293,
+  "slope_stderr": 18.31505579966961,
+  "slope_pvalue": 0.0006295243119099204,
+  "r_squared_loo_min": 0.8820571550909111,
+  "r_squared_loo_max": 0.9540504226650901
+}

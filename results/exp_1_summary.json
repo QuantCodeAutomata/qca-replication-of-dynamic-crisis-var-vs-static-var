@@ -1,0 +1,11 @@
+{
+  "n_paths": 5000,
+  "T": 30,
+  "rho_crisis": 0.9,
+  "sigma_bridge": 0.11,
+  "seed": 20250101,
+  "n_scenarios": 7,
+  "dynamic_exceeds_static_fraction": 0.8571428571428571,
+  "mean_uplift_pct": 0.6713778162304633,
+  "median_uplift_pct": 0.6501026396044579
+}
