@@ -2,39 +2,51 @@
   "portfolios": [
     {
       "portfolio": "Technology",
-      "start": "2021-09-28",
+      "start": "2012-08-16",
       "end": "2025-05-30",
-      "n_obs": 831,
-      "slope": 0.10593205361954273,
-      "intercept": 0.17269780443547444,
-      "r_squared": 0.9964695315542025
+      "n_obs": 3215,
+      "n_assets": 10,
+      "cholesky_dim": 45,
+      "slope": 0.10184343555326687,
+      "sigma_isotropic": 0.04757296981206097,
+      "intercept": 8.627183864538829,
+      "r_squared": 0.9982167401228511
     },
     {
       "portfolio": "Old Economy",
       "start": "2007-08-29",
       "end": "2025-05-30",
       "n_obs": 4467,
-      "slope": 0.11776046127099145,
-      "intercept": -15.258953832681032,
-      "r_squared": 0.9975079853658614
+      "n_assets": 10,
+      "cholesky_dim": 45,
+      "slope": 0.11776809873892818,
+      "sigma_isotropic": 0.0511572952848865,
+      "intercept": -15.273362140382638,
+      "r_squared": 0.9975097321117178
     },
     {
       "portfolio": "Finance",
       "start": "2007-08-29",
       "end": "2025-05-30",
       "n_obs": 4467,
-      "slope": 0.07095557817400851,
-      "intercept": 2.8147447005798045,
-      "r_squared": 0.9987821932782364
+      "n_assets": 10,
+      "cholesky_dim": 45,
+      "slope": 0.07095833904765103,
+      "sigma_isotropic": 0.03970959555115979,
+      "intercept": 2.817894924721827,
+      "r_squared": 0.9987796718925356
     },
     {
       "portfolio": "Commodities",
-      "start": "2011-09-29",
+      "start": "2011-09-22",
       "end": "2025-05-30",
-      "n_obs": 3437,
-      "slope": 0.10877149133707815,
-      "intercept": -3.7332129810271955,
-      "r_squared": 0.9988177625599114
+      "n_obs": 3442,
+      "n_assets": 10,
+      "cholesky_dim": 45,
+      "slope": 0.10896584580579641,
+      "sigma_isotropic": 0.04920836555026807,
+      "intercept": -3.8645812525155465,
+      "r_squared": 0.998757129608664
     }
   ]
 }

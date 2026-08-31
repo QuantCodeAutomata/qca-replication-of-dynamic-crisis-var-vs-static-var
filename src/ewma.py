@@ -1,9 +1,8 @@
 """RiskMetrics-style EWMA covariance and correlation estimation.
 
-Implemented from scratch — Context7 confirms no mainstream lib provides the
-exact ``S_t = lambda S_{t-1} + (1 - lambda) r_{t-1} r_{t-1}^T`` recursion
-in the shape needed here (`arch` is univariate-focused; `sklearn` covariance
-estimators do not implement the RiskMetrics recursion).
+Implemented from scratch using the post-observation update
+``S <- lambda S + (1 - lambda) r r^T``. Both snapshot and path functions use
+the same convention and include the final supplied return.
 """
 from __future__ import annotations
 
@@ -47,7 +46,7 @@ def ewma_covariance(
     if S.ndim == 0:  # single asset edge case
         S = np.array([[float(S)]])
     for t in range(burn_in, T):
-        r = returns[t - 1].reshape(-1, 1)
+        r = returns[t].reshape(-1, 1)
         S = lam * S + (1.0 - lam) * (r @ r.T)
     return S
 
@@ -59,7 +58,9 @@ def ewma_covariance_path(
 ) -> np.ndarray:
     """Return a path of EWMA covariance matrices, shape (T - burn_in, n, n).
 
-    ``S_t`` at output index ``k`` corresponds to input index ``burn_in + k``.
+    Output index ``k`` is the post-update covariance after observing return
+    ``burn_in + k``. Consequently the final path element equals
+    ``ewma_covariance(returns, ...)`` and includes the last input return.
     """
     T, n = returns.shape
     if T <= burn_in:
@@ -68,11 +69,10 @@ def ewma_covariance_path(
     if S.ndim == 0:
         S = np.array([[float(S)]])
     out = np.zeros((T - burn_in, n, n))
-    out[0] = S
-    for t in range(burn_in, T - 1):
+    for t in range(burn_in, T):
         r = returns[t].reshape(-1, 1)
         S = lam * S + (1.0 - lam) * (r @ r.T)
-        out[t - burn_in + 1] = S
+        out[t - burn_in] = S
     return out
 
 

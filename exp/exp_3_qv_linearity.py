@@ -20,29 +20,19 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 
 from src.data import PORTFOLIOS, align_returns, portfolio_prices
 from src.ewma import cov_to_corr, ewma_covariance_path
-from src.manifold import correlation_to_cholesky
+from src.manifold import (
+    cholesky_dimension,
+    geodesic_qv_increments,
+    qv_ols_slope,
+    sigma_from_qv_slope,
+)
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 FIG_DIR = RESULTS / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _daily_geodesic_increment(L_prev: np.ndarray, L_curr: np.ndarray) -> float:
-    """Row-wise arccos-based geodesic distance between two Cholesky factors."""
-    n = L_prev.shape[0]
-    s = 0.0
-    for i in range(1, n):
-        Li = L_prev[i, : i + 1]
-        Ki = L_curr[i, : i + 1]
-        dot = float(np.clip(np.dot(Li, Ki) /
-                             (np.linalg.norm(Li) * np.linalg.norm(Ki)),
-                             -1.0 + 1e-12, 1.0 - 1e-12))
-        s += np.arccos(dot) ** 2
-    return float(np.sqrt(s))
 
 
 def qv_process(rets: pd.DataFrame, lam: float = 0.94, burn_in: int = 60) -> pd.Series:
@@ -50,29 +40,24 @@ def qv_process(rets: pd.DataFrame, lam: float = 0.94, burn_in: int = 60) -> pd.S
     R = rets.to_numpy(dtype=np.float64)
     cov_path = ewma_covariance_path(R, lam=lam, burn_in=burn_in)
     dates = rets.index[burn_in:burn_in + len(cov_path)]
-
-    L_prev = None
-    incs = []
+    C_path = np.empty((len(cov_path), R.shape[1], R.shape[1]), dtype=np.float64)
     for k, S in enumerate(cov_path):
-        _, C = cov_to_corr(S)
-        L = correlation_to_cholesky(C)
-        if L_prev is not None:
-            incs.append(_daily_geodesic_increment(L_prev, L) ** 2)
-        L_prev = L
-    incs = np.asarray(incs)
+        _, C_path[k] = cov_to_corr(S)
+    incs = geodesic_qv_increments(C_path)
     qv = np.cumsum(incs)
     return pd.Series(qv, index=dates[1:], name="QV")
 
 
 def fit_linear(qv: pd.Series) -> Dict:
-    k = np.arange(1, len(qv) + 1, dtype=np.float64)
-    y = qv.to_numpy()
-    X = sm.add_constant(k)
-    model = sm.OLS(y, X).fit()
+    y = qv.to_numpy(dtype=np.float64)
+    increments = np.empty_like(y)
+    increments[0] = y[0]
+    increments[1:] = np.diff(y)
+    slope, intercept, r_squared = qv_ols_slope(increments)
     return {
-        "slope": float(model.params[1]),
-        "intercept": float(model.params[0]),
-        "r_squared": float(model.rsquared),
+        "slope": slope,
+        "intercept": intercept,
+        "r_squared": r_squared,
         "n_obs": int(len(qv)),
     }
 
@@ -83,7 +68,7 @@ def main() -> pd.DataFrame:
     axes = axes.ravel()
 
     for k, (pname, tickers) in enumerate(PORTFOLIOS.items()):
-        print(f"[exp_3] {pname} — loading prices...")
+        print(f"[exp_3] {pname} - loading prices...")
         prices = portfolio_prices(pname)
         rets = align_returns(prices, kind="log")
         print(f"        aligned returns: {len(rets)} rows from "
@@ -91,9 +76,15 @@ def main() -> pd.DataFrame:
 
         qv = qv_process(rets)
         stats = fit_linear(qv)
-        stats.update({"portfolio": pname,
-                      "start": str(qv.index.min().date()),
-                      "end":   str(qv.index.max().date())})
+        n_assets = int(rets.shape[1])
+        stats.update({
+            "portfolio": pname,
+            "n_assets": n_assets,
+            "cholesky_dim": cholesky_dimension(n_assets),
+            "sigma_isotropic": sigma_from_qv_slope(stats["slope"], n_assets),
+            "start": str(qv.index.min().date()),
+            "end":   str(qv.index.max().date()),
+        })
         rows.append(stats)
 
         ax = axes[k]
@@ -112,7 +103,8 @@ def main() -> pd.DataFrame:
     plt.close()
 
     df = pd.DataFrame(rows)[["portfolio", "start", "end", "n_obs",
-                             "slope", "intercept", "r_squared"]]
+                             "n_assets", "cholesky_dim", "slope",
+                             "sigma_isotropic", "intercept", "r_squared"]]
     df.to_csv(RESULTS / "exp_3_qv_regression.csv", index=False)
     (RESULTS / "exp_3_summary.json").write_text(
         json.dumps({"portfolios": df.to_dict(orient="records")}, indent=2))

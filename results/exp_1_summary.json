@@ -1,11 +1,15 @@
 {
   "n_paths": 5000,
-  "T": 30,
+  "T": 21,
   "rho_crisis": 0.9,
-  "sigma_bridge": 0.11,
+  "bridge_endpoint": "pinned_to_crisis_target",
+  "sigma_rule": "sqrt(qv_slope / cholesky_dim)",
   "seed": 20250101,
-  "n_scenarios": 7,
-  "dynamic_exceeds_static_fraction": 0.8571428571428571,
-  "mean_uplift_pct": 0.6713778162304633,
-  "median_uplift_pct": 0.6501026396044579
+  "n_scenarios": 12,
+  "mean_sigma_bridge": 0.04689070468057093,
+  "min_sigma_bridge": 0.03955798211698673,
+  "max_sigma_bridge": 0.05485260457793819,
+  "dynamic_exceeds_static_fraction": 1.0,
+  "mean_uplift_pct": 1.9663648702228673,
+  "median_uplift_pct": 2.074508808018019
 }

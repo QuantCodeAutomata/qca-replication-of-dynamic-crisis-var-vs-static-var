@@ -2,19 +2,19 @@
   "diffusion": {
     "n_matrices": 500,
     "n_steps": 30,
-    "min_eigenvalue_min": -2.142391122813851e-16,
-    "min_eigenvalue_mean": 0.00017148706874793644,
-    "diag_dev_max": 6.661338147750939e-16,
+    "min_eigenvalue_min": -6.640601310888616e-16,
+    "min_eigenvalue_mean": 0.00017148706513243043,
+    "diag_dev_max": 4.440892098500626e-16,
     "symmetry_err_max": 0.0,
-    "off_diag_mean": -0.003047450910854573,
-    "off_diag_std": 0.39539025446122983,
-    "off_diag_median": -0.0054532032423989605
+    "off_diag_mean": -0.003047454401455019,
+    "off_diag_std": 0.39539025350694557,
+    "off_diag_median": -0.005453203242401389
   },
   "bridge": {
-    "avg_corr_start_mean": 0.011521298671527545,
-    "avg_corr_end_mean": 0.8550113488995575,
-    "distance_start_mean": 3.8224350582023727,
-    "distance_end_mean": 0.7180709726082413,
+    "avg_corr_start_mean": 0.01152129867152754,
+    "avg_corr_end_mean": 0.9000000000000002,
+    "distance_start_mean": 3.8224350582023634,
+    "distance_end_mean": 4.24259375960518e-06,
     "rho_crisis": 0.9
   }
 }
